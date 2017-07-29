@@ -1,0 +1,3 @@
+class Person < Player
+  
+end
