@@ -3,11 +3,13 @@ class Player
 
   @@defaults = {
     start_money: 100,
+    currency: 'RUB'
   }
 
   def initialize(args={})
     @name = args[:name]
     @money = @@defaults[:start_money]
+    @currency = @@defaults[:currency]
     @last_actions = []
     @cards = []
     #self.validate!
@@ -42,6 +44,10 @@ class Player
 
   def end_round
     self.last_actions = []
+  end
+  
+  def get_name_and_money
+    return "#{self.name} with #{self.money} #{@currency}"
   end
 
   protected

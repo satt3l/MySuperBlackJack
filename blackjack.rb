@@ -30,9 +30,9 @@ class BlackJack
     @players = []
     @bank = 0
     @rules = RULES[rules_type.to_sym]
+    @wait_counter = 0
     @card_deck = create_deck
     create_players
-    puts "players: #{@players}"
     start_game
   end
   
@@ -64,11 +64,11 @@ class BlackJack
       make_bet(item[:player])
       @rules[:cards_to_take_on_first_move].times { item[:player].take_card(@game_deck)}
     end
-    calculate_score
     @players.each { |item| item[:player].print_cards}
 
     loop do
       system "clear"
+      calculate_score
       print_round_info
       @players.each { |item| item[:player].print_cards}
       @players.each do |item|
@@ -76,16 +76,10 @@ class BlackJack
           output = human_turn(item[:player])        
           # break if input == '0'   
         elsif item[:player].is_a?(Virtual)
-          # Computer move
-          puts "score: #{item[:score]}, win_score: #{@rules[:win_score]}"
           item[:player].make_move(item[:score], @rules[:win_score], @game_deck)
         end
       end
     end
-  end
-
-  def end_move
-    calculate_score
   end
 
   def human_turn(player) # rename
@@ -103,7 +97,8 @@ class BlackJack
     puts "End round"
     player.show_cards
     @players.each { |item| puts "Player #{item[:player].name} has cards: #{item[:player].cards.join(', ')}. Score: #{item[:score]}" }
-    give_money_to_winner_from_bank(get_winner)
+    give_money_to_winner_from_bank(get_winners)
+    loop do puts "Press any key" && gets && break end
     # Ask what to do further
     # is it really needed?
   end
@@ -118,15 +113,22 @@ class BlackJack
   end
 
   def player_wait(player)
-    player.wait
+    if @wait_counter > 2
+      puts "Whoa!!! You want to wait forever? Naaa, thats not gonna happen. I call the end of this round"
+      end_round(player)
+      @wait_counter = 0
+      return
+    end
+    player.wait 
+    @wait_counter+= 1
   end
 
   protected
   attr_writer :bank
 
-  def get_players_names
+  def get_players
     result = []
-    @players.select { |item| result << item[:player].name}
+    @players.each { |item| result << item[:player].get_name_and_money}
     return result.join(', ')
   end
 
@@ -138,15 +140,24 @@ class BlackJack
 
   def print_round_info
     puts "Money in bank: #{@bank}"
-    puts "Players in game: #{get_players_names}"
-    puts "Previous turns:\n #{get_players_last_actions}"
+    puts "Players in game: #{get_players}"
+    puts "Previous turns:\n#{get_players_last_actions}"
   end 
 
-  def give_money_to_winner_from_bank(winner)
-    if winner.size == 1
-      winner.increase_money_amount(self.bank)
+  def give_money_to_winner_from_bank(winners)
+    puts "#{winners}"
+    # Yeah, i know, this is useless, but i found it pretty funny :)
+    if winners.empty?
+      puts "HAHAHAHAHA!!!! Your all are losers!!! I will take this money for myself!!!!"
+      self.bank = 0
+      return
+    end 
+    if winners.size == 1
+      puts "Winner is #{winners.first.name}"
+      winners.first.increase_money_amount(self.bank)
     else
-      winner.each { |item| item[:player].increase_money_amount(self.bank / winner.size) }
+      puts "Winners are: "
+      winners.each { |player| puts "#{player.name}"; player.increase_money_amount(self.bank / winners.size) }
     end
     self.bank = 0
   end
@@ -156,37 +167,68 @@ class BlackJack
     player.decrease_money_amount(bet_amount) && self.bank += bet_amount
   end
 
-  def get_winner
-    score = 0
-    @players.each_with_index do |player, index|
-      winning_score = player.score if score < player.score
-      # winner_index = index
+  def get_winners
+    if have_player_with_win_score?
+      return get_players_with_win_score
+    else
+      return get_winners_among_losers
     end
-    return @players.select{ |item| item[:score] == winning_score}
+  end
+
+  def have_player_with_win_score?
+    @players.map { |item| item[:score] == @rules[:win_score]}.include?(true)
+  end
+
+  def get_players_with_win_score
+    result = []
+    @players.each do |item|
+      result << item[:player] if item[:score] == @rules[:win_score]
+    end
+    result
   end
   
-  def calculate_score
+  def get_winners_among_losers
+    result = []
+    score = 0
     @players.each do |item|
-      item[:player].cards.each do |card|
-        if card[:name][0] == 'A' # card is Ace
-          item[:score] += (item[:score] + card[:value].max > @rules[:win_score] ? card[:value].min : card[:value].min)
-        else
-          item[:score] += card[:value]
+      if result.empty?
+        score = item[:score]
+        result << item[:player]
+      else
+        if score < item[:score] && item[:score] < @rules[:win_score]
+          score = item[:score]
+          result.pop
+          result << item[:player]
         end
       end
+    end
+    result
+  end
+
+  def calculate_score
+    @players.each do |item|
+      score = 0
+      item[:player].cards.each do |card|
+        if card[:name][0] == 'A' # card is Ace
+          score += (item[:score] + card[:value].max > @rules[:win_score] ? card[:value].min : card[:value].max)
+        else
+          score += card[:value]
+        end
+      end
+      item[:score] = score
     end
   end
 
   def create_virtual_players(count = 1)
     count.times do 
-      @players << {player: Virtual.new(name: get_random_name), score: 0}
+      @players << {player: Virtual.new(name: get_random_name), score: 0, wait_counter: 0}
     end
   end
 
   def create_real_players(count = 1)
     count.times do
       puts 'Enter your name. E.g. Rico Carnbery'
-      @players << {player: Person.new(name: gets.chomp), score: 0}
+      @players << {player: Person.new(name: gets.chomp), score: 0, wait_counter: 0}
     end
   end
 
