@@ -41,18 +41,23 @@ class Player
     # do nothing
     self.last_actions << "#{self.name} waits"
   end
-
-  def end_round
-    self.last_actions = []
-  end
   
   def get_name_and_money
     return "#{self.name} with #{self.money} #{@currency}"
+  end
+  
+  def flush
+    reset_actions_and_cards
   end
 
   protected
   attr_writer :cards, :money, :last_actions
   
+  def reset_actions_and_cards
+    self.last_actions = []
+    self.cards = []
+  end
+
   def add_card(card_deck)
     self.cards << card_deck.get_card
   end

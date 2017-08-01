@@ -14,14 +14,14 @@ class BlackJack
     }
   }
   START_MENU = {
-    '1' => {text: 'Start round', method: 'start_round'},
+    '1' => {text: 'Start round, make a bet', method: 'start_round'},
     '2' => {text: 'End game', method: 'end_game'}
   }
   ROUND_MENU = {
     '1' => {text: 'Take card', method: 'player_take_card'},
     '2' => {text: 'Wait', method: 'player_wait'},
     '3' => {text: 'Show Cards', method: 'end_round'},
-    '4' => {text: 'Exit to main menu', method: 'break'}
+    '4' => {text: 'Exit to main menu', method: 'start_game'}
   }
   attr_reader :bank
 
@@ -47,6 +47,10 @@ class BlackJack
 
   def start_game
     loop do
+      print_money_in_bank
+      print_bet_amount
+      print_players_in_game
+
       puts "What next?"
       START_MENU.each_pair do |seq, option|
         puts "#{seq}: #{option[:text]}"
@@ -60,12 +64,7 @@ class BlackJack
   end
 
   def start_round
-    @players.each do |item| 
-      make_bet(item[:player])
-      @rules[:cards_to_take_on_first_move].times { item[:player].take_card(@game_deck)}
-    end
-    @players.each { |item| item[:player].print_cards}
-
+    make_bet
     loop do
       system "clear"
       calculate_score
@@ -98,9 +97,9 @@ class BlackJack
     player.show_cards
     @players.each { |item| puts "Player #{item[:player].name} has cards: #{item[:player].cards.join(', ')}. Score: #{item[:score]}" }
     give_money_to_winner_from_bank(get_winners)
+    flush_players_properties
     loop do puts "Press any key" && gets && break end
-    # Ask what to do further
-    # is it really needed?
+    start_game
   end
 
   def end_game
@@ -122,6 +121,10 @@ class BlackJack
     player.wait 
     @wait_counter+= 1
   end
+  
+  def flush_players_properties
+    @players.each {|item| item[:player].flush}
+  end
 
   protected
   attr_writer :bank
@@ -138,14 +141,34 @@ class BlackJack
     return result.join("\n")
   end
 
-  def print_round_info
-    puts "Money in bank: #{@bank}"
+  def print_bet_amount
+    puts "Minimal bet: #{@rules[:standard_bet]}"
+  end
+
+  def print_game_info
+    print_money_in_bank
+    print_players_in_game
+  end
+
+  def print_players_in_game
     puts "Players in game: #{get_players}"
+  end
+
+  def print_money_in_bank
+    puts "Money in bank: #{@bank}"
+  end
+
+  def print_last_players_turns
     puts "Previous turns:\n#{get_players_last_actions}"
+  end
+
+  def print_round_info
+    print_money_in_bank
+    print_players_in_game
+    print_last_players_turns 
   end 
 
   def give_money_to_winner_from_bank(winners)
-    puts "#{winners}"
     # Yeah, i know, this is useless, but i found it pretty funny :)
     if winners.empty?
       puts "HAHAHAHAHA!!!! Your all are losers!!! I will take this money for myself!!!!"
@@ -162,9 +185,12 @@ class BlackJack
     self.bank = 0
   end
   
-  def make_bet(player, bet = nil)
+  def make_bet(bet = nil)
     bet_amount ||= @rules[:standard_bet]
-    player.decrease_money_amount(bet_amount) && self.bank += bet_amount
+    @players.each do |item| 
+      item[:player].decrease_money_amount(bet_amount) && self.bank += bet_amount
+      @rules[:cards_to_take_on_first_move].times { item[:player].take_card(@game_deck)}
+    end
   end
 
   def get_winners
