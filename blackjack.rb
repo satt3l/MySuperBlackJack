@@ -189,10 +189,11 @@ class BlackJack
     end 
     if winners.size == 1
       winners.first.increase_money_amount(self.bank)
-      puts "Winner is #{winners.first.name} and bank #{self.bank}"
+      puts "Winner is #{winners.first.name}."
     else
       puts "Winners are: "
       winners.each { |player| puts "#{player.name}"; player.increase_money_amount(self.bank / winners.size) }
+      puts "and "
     end
     self.bank = 0
   end
