@@ -1,10 +1,9 @@
 class Deck
-  attr_reader :cards
+  attr_reader :cards, :cards_out
 
   def initialize(multiplier = 1)
     @cards = []
     @cards_out = []
-    cards_in = []
     multiplier.times do   
       ['+', '<3', '^', '<>'].each do |suit|
         (2..10).each { |n| @cards << {name: "#{n}#{suit}", value: n}}
@@ -14,18 +13,18 @@ class Deck
         @cards << {name: "A#{suit}", value: [11, 1]}
       end
     end
-    flush
   end
 
   def get_card
-    flush if @cards_in.empty?
-    card = @cards_in.delete_at(rand(@cards.size - 1))
+    flush if @cards.empty?
+    card = @cards.delete_at(rand(@cards.size - 1))
     @cards_out.push(card)
     return card
   end
 
   def flush
-    @cards_in = self.cards
+    @cards = self.cards_out
+    @cards_out = []
   end
   
 end

@@ -10,7 +10,8 @@ class BlackJack
       ai_count: 1, 
       max_card_on_hand: 3, 
       cards_to_take_on_first_move: 2,
-      standard_bet: 10
+      standard_bet: 10,
+      currency: 'RUB'
     }
   }
   START_MENU = {
@@ -20,8 +21,7 @@ class BlackJack
   ROUND_MENU = {
     '1' => {text: 'Take card', method: 'player_take_card'},
     '2' => {text: 'Wait', method: 'player_wait'},
-    '3' => {text: 'Show Cards', method: 'end_round'},
-    '4' => {text: 'Exit to main menu', method: 'start_game'}
+    '3' => {text: 'Show Cards', method: 'end_round'}
   }
   attr_reader :bank
 
@@ -32,6 +32,9 @@ class BlackJack
     @rules = RULES[rules_type.to_sym]
     @wait_counter = 0
     @card_deck = create_deck
+    @game_currency = @rules[:currency]
+    @end_round = false
+    @end_game = false
     create_players
     start_game
   end
@@ -47,6 +50,7 @@ class BlackJack
 
   def start_game
     loop do
+      break if @end_game
       print_money_in_bank
       print_bet_amount
       print_players_in_game
@@ -64,8 +68,10 @@ class BlackJack
   end
 
   def start_round
+    @end_round = false
     make_bet
     loop do
+      break if @end_round || maximum_card_limit_reached?
       system "clear"
       calculate_score
       print_round_info
@@ -93,22 +99,28 @@ class BlackJack
   end
 
   def end_round(player)
+    @end_round = true
     puts "End round"
     player.show_cards
     @players.each { |item| puts "Player #{item[:player].name} has cards: #{item[:player].cards.join(', ')}. Score: #{item[:score]}" }
     give_money_to_winner_from_bank(get_winners)
     flush_players_properties
     loop do puts "Press any key" && gets && break end
-    start_game
   end
 
   def end_game
+    @end_game = true
     puts "COWARD!!!"
-    exit
   end
 
   def player_take_card(player)
-    player.take_card(@game_deck)
+    if maximum_card_limit_reached?(player)
+      puts "Maximum limit of cards on hand #{@rules[:max_card_on_hand]} reached, suppose you decided to wait."
+      sleep 1
+      player_wait(player)
+    else
+      player.take_card(@game_deck)
+    end
   end
 
   def player_wait(player)
@@ -123,7 +135,7 @@ class BlackJack
   end
   
   def flush_players_properties
-    @players.each {|item| item[:player].flush}
+    @players.each { |item| item[:player].flush }
   end
 
   protected
@@ -142,7 +154,7 @@ class BlackJack
   end
 
   def print_bet_amount
-    puts "Minimal bet: #{@rules[:standard_bet]}"
+    puts "Minimal bet: #{@rules[:standard_bet]} #{@game_currency}"
   end
 
   def print_game_info
@@ -155,7 +167,7 @@ class BlackJack
   end
 
   def print_money_in_bank
-    puts "Money in bank: #{@bank}"
+    puts "Money in bank: #{@bank} #{@game_currency}"
   end
 
   def print_last_players_turns
@@ -176,8 +188,8 @@ class BlackJack
       return
     end 
     if winners.size == 1
-      puts "Winner is #{winners.first.name}"
       winners.first.increase_money_amount(self.bank)
+      puts "Winner is #{winners.first.name} and bank #{self.bank}"
     else
       puts "Winners are: "
       winners.each { |player| puts "#{player.name}"; player.increase_money_amount(self.bank / winners.size) }
@@ -217,6 +229,14 @@ class BlackJack
     result = []
     score = 0
     @players.each do |item|
+      if item[:score] < @rules[:win_score]
+        if score < item[:score]
+          result = [item[:player]]
+        elsif score == item[:score]
+          result << item[:player]
+        end
+      end
+
       if result.empty?
         score = item[:score]
         result << item[:player]
@@ -244,17 +264,28 @@ class BlackJack
       item[:score] = score
     end
   end
+  
+  def maximum_card_limit_reached?(player = nil)
+    if player
+      res = player.cards.size == @rules[:max_card_on_hand]
+    else
+      cards_on_hands = []
+      @players.each { |item| cards_on_hands << item[:player].cards.size }
+      res = cards_on_hands.uniq == [@rules[:max]]
+    end
+    res
+  end
 
   def create_virtual_players(count = 1)
     count.times do 
-      @players << {player: Virtual.new(name: get_random_name), score: 0, wait_counter: 0}
+      @players << {player: Virtual.new(name: get_random_name), score: 0, wait_counter: 0, currency: @game_currency}
     end
   end
 
   def create_real_players(count = 1)
     count.times do
       puts 'Enter your name. E.g. Rico Carnbery'
-      @players << {player: Person.new(name: gets.chomp), score: 0, wait_counter: 0}
+      @players << {player: Person.new(name: gets.chomp.strip), score: 0, wait_counter: 0, currency: @game_currency}
     end
   end
 

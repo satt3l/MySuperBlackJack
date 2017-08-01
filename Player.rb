@@ -1,5 +1,5 @@
 class Player
-  attr_reader :name, :cards, :money, :last_actions
+  attr_reader :name, :cards, :money, :last_actions, :currency
 
   @@defaults = {
     start_money: 100,
@@ -24,8 +24,8 @@ class Player
   end 
 
   def decrease_money_amount(amount = 0)
-    raise NotEnoughMoney, "Unable to decrease money amount to negative value. \\n
-      Current money amount #{self.money}, decrease by #{amount}" if self.money - money < 0
+    raise InsufficientMoney, "Unable to decrease money amount to negative value. \\n
+      Current money amount #{self.money}, decrease by #{amount}" if self.money - amount < 0
     self.money -= amount
   end
 

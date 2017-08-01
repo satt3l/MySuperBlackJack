@@ -1,0 +1,2 @@
+class InsufficientMoney < StandardError
+end
