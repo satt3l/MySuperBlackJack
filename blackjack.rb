@@ -2,13 +2,13 @@ require 'json'
 Dir['*.rb'].each { |file| require_relative file}
 
 class BlackJack
-  RULES = { 
+  RULES = {
     standard: {
-      win_score: 21, 
-      card_deck_count: 1, 
-      player_count: 1, 
-      ai_count: 1, 
-      max_card_on_hand: 3, 
+      win_score: 21,
+      card_deck_count: 1,
+      player_count: 1,
+      ai_count: 1,
+      max_card_on_hand: 3,
       cards_to_take_on_first_move: 2,
       standard_bet: 10,
       currency: 'RUB'
@@ -29,6 +29,9 @@ class BlackJack
     rules_type ||= 'standard'
     @players = []
     @bank = 0
+    # NOTE: лучше было бы вынести правила в отдельный класс и использовать здесь композицию:
+    # `@rules = Rules.new(rules_type)`
+    # При этом правила по умолчанию можно определять в конструкторе класса `Rules`.
     @rules = RULES[rules_type.to_sym]
     @wait_counter = 0
     @card_deck = create_deck
@@ -38,7 +41,8 @@ class BlackJack
     create_players
     start_game
   end
-  
+
+  # NOTE: по идее, за создание колоды как раз отвечает `Deck.new`. Если хочется как-то разделить факт передачи правил, можно сделать метод класса `Deck.create(rules)`.
   def create_deck(rules = RULES[:standard])
     @game_deck = Deck.new(rules[:card_deck_count])
   end
@@ -77,9 +81,16 @@ class BlackJack
       print_round_info
       @players.each { |item| item[:player].print_cards}
       @players.each do |item|
-        if item[:player].is_a?(Person) 
-          output = human_turn(item[:player])        
-          # break if input == '0'   
+        # NOTE: это удобней делать через `case`:
+        # case item[:player]
+        # when Person
+        #   output = human_turn(item[:player])
+        # when Virtual
+        #   item[:player].make_move(item[:score], @rules[:win_score], @game_deck)
+        # end
+        if item[:player].is_a?(Person)
+          output = human_turn(item[:player])
+          # break if input == '0'
         elsif item[:player].is_a?(Virtual)
           item[:player].make_move(item[:score], @rules[:win_score], @game_deck)
         end
@@ -88,14 +99,14 @@ class BlackJack
   end
 
   def human_turn(player) # rename
-    # return 
+    # return
     ROUND_MENU.each_pair do |seq, option|
       puts "#{seq}: #{option[:text]}"
     end
     input = gets.chomp
     if ROUND_MENU.key?(input)
       send(ROUND_MENU[input][:method], player)
-    end   
+    end
   end
 
   def end_round(player)
@@ -130,10 +141,10 @@ class BlackJack
       @wait_counter = 0
       return
     end
-    player.wait 
+    player.wait
     @wait_counter+= 1
   end
-  
+
   def flush_players_properties
     @players.each { |item| item[:player].flush }
   end
@@ -162,6 +173,7 @@ class BlackJack
     print_players_in_game
   end
 
+  # NOTE: можно немного разгрузить этот класс если методы вывода информации поместить в отдельный класс.
   def print_players_in_game
     puts "Players in game: #{get_players}"
   end
@@ -177,8 +189,8 @@ class BlackJack
   def print_round_info
     print_money_in_bank
     print_players_in_game
-    print_last_players_turns 
-  end 
+    print_last_players_turns
+  end
 
   def give_money_to_winner_from_bank(winners)
     # Yeah, i know, this is useless, but i found it pretty funny :)
@@ -186,7 +198,7 @@ class BlackJack
       puts "HAHAHAHAHA!!!! Your all are losers!!! I will take this money for myself!!!!"
       self.bank = 0
       return
-    end 
+    end
     if winners.size == 1
       winners.first.increase_money_amount(self.bank)
       puts "Winner is #{winners.first.name}."
@@ -197,10 +209,10 @@ class BlackJack
     end
     self.bank = 0
   end
-  
+
   def make_bet(bet = nil)
     bet_amount ||= @rules[:standard_bet]
-    @players.each do |item| 
+    @players.each do |item|
       item[:player].decrease_money_amount(bet_amount) && self.bank += bet_amount
       @rules[:cards_to_take_on_first_move].times { item[:player].take_card(@game_deck)}
     end
@@ -212,23 +224,27 @@ class BlackJack
     else
       return get_winners_among_losers
     end
+    # NOTE: `return`-ы здесь не нужны.
   end
 
   def have_player_with_win_score?
+    # NOTE: достаточно использовать метод `select`. Он вернёт либо пустой массив, либо массив с обектами победителей. Далее мы можем опираться на свойство Ruby относительно того что всё является `true`, кроме `nil`и `false`.
     @players.map { |item| item[:score] == @rules[:win_score]}.include?(true)
   end
 
   def get_players_with_win_score
     result = []
+    # NOTE: используй `select`. Также, этого метода достаточно. Чтобы понять набрал ли кто-то `:win_score` достаточно проверить получившийся массив на пустоту.
     @players.each do |item|
       result << item[:player] if item[:score] == @rules[:win_score]
     end
     result
   end
-  
+
   def get_winners_among_losers
     result = []
     score = 0
+    # NOTE: лучше переменную в блоке назвать `player`
     @players.each do |item|
       if item[:score] < @rules[:win_score]
         if score < item[:score]
@@ -265,7 +281,7 @@ class BlackJack
       item[:score] = score
     end
   end
-  
+
   def maximum_card_limit_reached?(player = nil)
     if player
       res = player.cards.size == @rules[:max_card_on_hand]
@@ -278,7 +294,7 @@ class BlackJack
   end
 
   def create_virtual_players(count = 1)
-    count.times do 
+    count.times do
       @players << {player: Virtual.new(name: get_random_name), score: 0, wait_counter: 0, currency: @game_currency}
     end
   end
@@ -290,11 +306,12 @@ class BlackJack
     end
   end
 
+  # NOTE: на мой взгляд, обязанность выбрать рандомное имя - это обязанность `Virtual`, но не класса игры.
   def get_random_name
     names = JSON.parse(File.read('resources/names.json')) # put to var!
     names['ai_names'][rand(names['ai_names'].size)]
   end
-  
+
   def add_to_bank(value)
     @bank += value
   end

@@ -1,3 +1,4 @@
+# NOTE: расширение можно не указывать.
 require_relative 'player.rb'
 class Person < Player
   def print_cards

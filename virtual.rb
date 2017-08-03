@@ -1,4 +1,6 @@
+# NOTE: расширение можно не указывать.
 require_relative 'player.rb'
+# NOTE: я бы назвал этот класс `Dealer` или `ComputerPlayer`, что-то вроде этого.
 class Virtual < Player
   def make_move(current_score, winning_score, card_deck)
     if winning_score - current_score > 6
